@@ -96,6 +96,7 @@ public class BookingController {
             case "Deluxe Suite": return new SuiteRoom(104, 350);
             default: throw new IllegalArgumentException("Unknown room type: " + roomType);
         }
+
     }
 
     private double addServicesToBooking(Booking booking, Map<Integer, String> selectedServicesWithValues) { // Changed method signature

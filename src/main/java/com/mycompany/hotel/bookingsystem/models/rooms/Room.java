@@ -2,7 +2,7 @@ package com.mycompany.hotel.bookingsystem.models.rooms;
 
 import java.util.Objects;
 
-public abstract class Room {
+public abstract class Room implements Comparable<Room> {
     private final int roomNumber;
     private final String type;
     private double price;
@@ -67,6 +67,7 @@ public abstract class Room {
         this.price = validatePrice(price);
     }
 
+    @Override
     public int compareTo(Room other) {
         return Double.compare(this.price, other.price);
     }

@@ -59,6 +59,7 @@ public class BookingApp extends Application {
         ScrollPane formScrollPane = new ScrollPane();
         formScrollPane.setContent(formSection);
         formScrollPane.setFitToWidth(true);
+        // scroll vertically when needed and never scroll horizontally
         formScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         formScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
@@ -67,7 +68,7 @@ public class BookingApp extends Application {
         title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         title.setTextFill(Color.DARKBLUE);
 
-        // Customer Information - Side by side
+        // Customer Information
         Label customerLabel = new Label("Customer Information:");
         customerLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
@@ -84,11 +85,13 @@ public class BookingApp extends Application {
 
         nameEmailBox.getChildren().addAll(nameBox, emailBox);
 
-        // Booking Details - Side by side
+        // Booking Details
         Label bookingLabel = new Label("Booking Details:");
         bookingLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
         HBox dateBox = new HBox(15);
+
+
         VBox checkInBox = new VBox(5);
         Label checkInLabel = new Label("Check-in Date:");
         DatePicker checkInDate = new DatePicker();
