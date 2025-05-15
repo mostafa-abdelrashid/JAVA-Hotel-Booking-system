@@ -1,109 +1,226 @@
 package com.mycompany.hotel.bookingsystem.controllers;
 
-import com.mycompany.hotel.bookingsystem.App;
 import com.mycompany.hotel.bookingsystem.exceptions.InvalidEmailException;
-import com.mycompany.hotel.bookingsystem.exceptions.InvalidPasswordException;
+import com.mycompany.hotel.bookingsystem.exceptions.InvalidServiceException;
 import com.mycompany.hotel.bookingsystem.models.bookings.Booking;
+import com.mycompany.hotel.bookingsystem.models.offers.SpecialCodeOffer;
+import com.mycompany.hotel.bookingsystem.models.payment.*;
+import com.mycompany.hotel.bookingsystem.models.rooms.*;
+import com.mycompany.hotel.bookingsystem.models.services.*;
 import com.mycompany.hotel.bookingsystem.models.users.Customer;
-import com.mycompany.hotel.bookingsystem.models.Hotel;
-import com.mycompany.hotel.bookingsystem.models.payment.Payment;
-import com.mycompany.hotel.bookingsystem.models.rooms.Room;
-import com.mycompany.hotel.bookingsystem.views.BookingView;
-import javafx.collections.ObservableList;
-import javafx.scene.control.Alert;
-import javafx.scene.control.RadioButton;
-import javafx.scene.control.ToggleGroup;
-
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
+import com.mycompany.hotel.bookingsystem.exceptions.InvalidServiceException;
+import java.sql.Date;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class BookingController {
+    private final Map<Integer, Booking> bookings = new HashMap<>();
+    private final Map<Integer, Service> availableServices = new HashMap<>();
+    private int bookingIdCounter = 1;
 
-    private final BookingView bookingView;
-    private final Hotel hotel;
-    private final ObservableList<Booking> bookings;
-    private final ObservableList<Room> availableRooms;
-    private final App mainApp;
-
-    public BookingController(BookingView bookingView, Hotel hotel, ObservableList<Booking> bookings, ObservableList<Room> availableRooms, App mainApp) {
-        this.bookingView = bookingView;
-        this.hotel = hotel;
-        this.bookings = bookings;
-        this.availableRooms = availableRooms;
-        this.mainApp = mainApp;
-        initializeController();
+    public BookingController() throws InvalidServiceException {
+        initializeServices();
     }
 
-    private void initializeController() {
-        bookingView.getBookRoomButton().setOnAction(e -> handleBookingSubmission());
-        // You might want to add listeners to the date pickers to update available rooms
+    private void initializeServices() throws InvalidServiceException {
+        // Room Services
+        availableServices.put(1, new RoomService(1, "Breakfast", "Continental breakfast", 15.0, "Continental"));
+        availableServices.put(2, new RoomService(2, "Dinner", "Gourmet dinner service", 35.0, "Gourmet"));
+
+        // Laundry Services
+        availableServices.put(3, new LaundryService(3, "Express Laundry", "Next-day service", 25.0, 5));
+        availableServices.put(4, new LaundryService(4, "Standard Laundry", "3-day service", 15.0, 10));
+
+        // Spa Services
+        availableServices.put(5, new SpaService(5, "Basic Package", "Sauna and massage", 50.0, "Basic"));
+        availableServices.put(6, new SpaService(6, "Premium Package", "Full spa experience", 100.0, "Premium"));
     }
 
-    private void handleBookingSubmission() {
-        LocalDate checkInDate = bookingView.getCheckInDatePicker().getValue();
-        LocalDate checkOutDate = bookingView.getCheckOutDatePicker().getValue();
-        Room selectedRoom = bookingView.getRoomComboBox().getValue();
-        String customerName = bookingView.getCustomerNameField().getText();
-        String customerEmail = bookingView.getCustomerEmailField().getText();
-        ToggleGroup paymentGroup = bookingView.getPaymentGroup();
-
-        if (checkInDate == null || checkOutDate == null || selectedRoom == null || customerName.isEmpty() || customerEmail.isEmpty() || paymentGroup.getSelectedToggle() == null) {
-            mainApp.showAlert("Error", "Please fill in all the booking details.");
-            return;
-        }
-
-        if (checkInDate.isAfter(checkOutDate) || checkInDate.isEqual(checkOutDate)) {
-            mainApp.showAlert("Error", "Check-out date must be after check-in date.");
-            return;
-        }
-
+    public String processBooking(String name, String email,
+                                 Date checkIn, Date checkOut,
+                                 String roomType,
+                                 Map<Integer, String> selectedServicesWithValues,
+                                 String offerCode,
+                                 boolean isCreditCard,
+                                 String cardNum, String expiry,
+                                 String holder, String cvv,
+                                 String paypalEmail) {
         try {
-            //  customer.
-            Customer customer = new Customer(customerName, customerEmail, "password"); //  password
+            Customer customer = new Customer(name, email);
 
-            // Create the booking
-            Booking booking = new Booking(
-                    bookings.size() + 1, //  ID
-                    customer,
-                    selectedRoom,
-                    Date.from(checkInDate.atStartOfDay(ZoneId.systemDefault()).toInstant()),
-                    Date.from(checkOutDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
-            );
 
-            // Process payment (show payment dialog)
-            Payment payment = mainApp.showPaymentDialog(paymentGroup);
+            // Create room
+            Room room = createRoom(roomType);
 
-            if (payment != null) {
-                bookings.add(booking);
-                selectedRoom.setAvailable(false); // Mark the room as booked
-                updateAvailableRooms(); // Update the list of available rooms
+            // Create booking
+            Booking booking = new Booking(bookingIdCounter++, customer, room, checkIn, checkOut);
+            bookings.put(booking.getBookingId(), booking);
 
-                bookingView.getBookingListView().getItems().add(booking); //add to the listview
-                clearBookingForm();
-            } else {
-                mainApp.showAlert("Payment Cancelled", "Payment was not processed. Booking cancelled.");
+            // Add selected services
+            double servicesTotal = addServicesToBooking(booking, selectedServicesWithValues); // Changed method call
+
+            // Apply offer if present
+            double totalPrice = booking.getTotalPrice() + servicesTotal;
+            if (offerCode != null && !offerCode.trim().isEmpty()) {
+                if (isValidOfferCode(offerCode)) {
+                    SpecialCodeOffer offer = new SpecialCodeOffer(offerCode);
+                    totalPrice = offer.applyOffer(totalPrice);
+                    booking.setOfferApplied(offer);
+                } else {
+                    return "⚠️ Error: Invalid offer code.";
+                }
             }
-        } catch (Booking.InvalidBookingException e) {
-            mainApp.showAlert("Booking Error", e.getMessage());
-        } catch (InvalidEmailException e) {
-            mainApp.showAlert("Invalid Email", e.getMessage());
-        } catch (InvalidPasswordException e) {
-            mainApp.showAlert("Invalid Password", e.getMessage());
+
+            // Process payment
+            Payment payment = createPayment(isCreditCard, cardNum, expiry, holder, cvv, paypalEmail);
+            if (!payment.pay(totalPrice)) {
+                return "❌ Payment failed. Please try another payment method.";
+            }
+
+            return completeBooking(booking, payment, totalPrice);
+
+        }catch (InvalidEmailException e) {
+            System.out.println("InvalidEmailException caught: " + e.getMessage());
+            return "⚠️ Error: " + e.getMessage();
+        } catch (Exception ex) {
+            return "⚠️ Error: " + ex.getMessage();
         }
     }
 
-    private void updateAvailableRooms() {
-        availableRooms.setAll(hotel.getRooms().stream().filter(Room::isAvailable).collect(java.util.stream.Collectors.toList()));
+    private Room createRoom(String roomType) {
+        switch (roomType) {
+            case "Single Room": return new SingleRoom(101, 100);
+            case "Double Room": return new DoubleRoom(102, 150);
+            case "Suite": return new SuiteRoom(103, 250);
+            case "Deluxe Suite": return new SuiteRoom(104, 350);
+            default: throw new IllegalArgumentException("Unknown room type: " + roomType);
+        }
     }
 
-    private void clearBookingForm() {
-        bookingView.getCheckInDatePicker().setValue(null);
-        bookingView.getCheckOutDatePicker().setValue(null);
-        bookingView.getRoomComboBox().setValue(null);
-        bookingView.getCustomerNameField().clear();
-        bookingView.getCustomerEmailField().clear();
-        bookingView.getPaymentGroup().selectToggle(null);
+    private double addServicesToBooking(Booking booking, Map<Integer, String> selectedServicesWithValues) { // Changed method signature
+        double servicesTotal = 0;
+        for (Map.Entry<Integer, String> entry : selectedServicesWithValues.entrySet()) {
+            int serviceId = entry.getKey();
+            String serviceValue = entry.getValue();
+            Service service = availableServices.get(serviceId);
+            if (service != null) {
+                try {
+                    booking.addService(service);
+                    servicesTotal += processServiceValue(booking, service, serviceValue); // Process the value
+                } catch (InvalidServiceException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                System.out.println("Service with ID " + serviceId + " not found.");
+            }
+        }
+        return servicesTotal;
+    }
+
+    private double processServiceValue(Booking booking, Service service, String serviceValue) {
+        double serviceCost = service.getPrice(); // Start with the base price
+        if (service instanceof LaundryService) {
+            if (serviceValue != null && !serviceValue.isEmpty()) {
+                try {
+                    int clothesCount = Integer.parseInt(serviceValue);
+                    ((LaundryService) service).setClothesCount(clothesCount);
+                    serviceCost += clothesCount * 1.5;
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid clothes count: " + serviceValue);
+                    return 0;
+                }
+            }
+        } else if (service instanceof RoomService) {
+            // Here, serviceValue will be the meal type (e.g., "Continental", "Gourmet")
+            if (serviceValue != null && !serviceValue.isEmpty()) {
+                ((RoomService) service).setMealType(serviceValue);
+            }
+            // The price is already set in initializeServices, no need to adjust here
+        } else if (service instanceof SpaService) {
+            // Here, serviceValue will be the spa package name (e.g., "Basic", "Premium")
+            if (serviceValue != null && !serviceValue.isEmpty()) {
+                ((SpaService) service).setSpaPackage(serviceValue);
+            }
+            // The price is already set in initializeServices, no need to adjust here
+        }
+        return serviceCost;
+    }
+
+    private Payment createPayment(boolean isCreditCard,
+                                  String cardNum, String expiry,
+                                  String holder, String cvv,
+                                  String paypalEmail) throws Exception {
+        if (isCreditCard) {
+            if (expiry == null || expiry.trim().isEmpty()) {
+                throw new IllegalArgumentException("Expiry date is required for credit card payments.");
+            }
+            YearMonth expiryDate = YearMonth.parse(expiry, DateTimeFormatter.ofPattern("MM/yy"));
+            return new CreditCardPayment(cardNum, expiryDate, holder, cvv);
+        } else {
+            if (paypalEmail == null || paypalEmail.trim().isEmpty()) {
+                throw new IllegalArgumentException("PayPal email is required for PayPal payments.");
+            }
+            return new PayPalPayment(paypalEmail);
+        }
+    }
+
+
+    private String completeBooking(Booking booking, Payment payment, double amount) {
+        return generateSuccessMessage(booking, amount);
+    }
+
+    private String generateSuccessMessage(Booking booking, double amount) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("✅ Booking successful!\n");
+        sb.append(String.format("Booking ID: %d\n", booking.getBookingId()));
+        sb.append(String.format("Customer: %s\n", booking.getCustomer().getName()));
+        sb.append(String.format("Room: %s\n", booking.getRoom().getClass().getSimpleName()));
+        sb.append(String.format("Check-in: %s\n", booking.getCheckInDate()));
+        sb.append(String.format("Check-out: %s\n", booking.getCheckOutDate()));
+
+        if (!booking.getServices().isEmpty()) {
+            sb.append("\nSelected Services:\n");
+            booking.getServices().forEach(service ->
+                    sb.append(String.format("- %s: $%.2f\n", service.getName(), service.getPrice())));
+        }
+
+        sb.append(String.format("\nTotal Price: $%.2f", amount));
+        return sb.toString();
+    }
+
+    public List<Service> getAvailableServices() {
+        return new ArrayList<>(availableServices.values());
+    }
+
+    public String getBookingDetails(int bookingId) {
+        Booking booking = bookings.get(bookingId);
+        if (booking == null) {
+            return "Booking not found with ID: " + bookingId;
+        }
+        return generateBookingDetails(booking);
+    }
+
+    private String generateBookingDetails(Booking booking) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Booking ID: %d\n", booking.getBookingId()));
+        sb.append(String.format("Customer: %s\n", booking.getCustomer().getName()));
+        sb.append(String.format("Room Type: %s\n", booking.getRoom().getClass().getSimpleName()));
+        sb.append(String.format("Check-in: %s\n", booking.getCheckInDate()));
+        sb.append(String.format("Check-out: %s\n", booking.getCheckOutDate()));
+
+        if (!booking.getServices().isEmpty()) {
+            sb.append("\nServices Included:\n");
+            booking.getServices().forEach(service ->
+                    sb.append(String.format("- %s ($%.2f)\n", service.getName(), service.getPrice())));
+        }
+
+        sb.append(String.format("\nTotal Paid: $%.2f", booking.getTotalPrice()));
+        return sb.toString();
+    }
+
+    private boolean isValidOfferCode(String offerCode) {
+
+        return offerCode.equalsIgnoreCase("SAVE10") || offerCode.equalsIgnoreCase("SPECIAL20");
     }
 }
-

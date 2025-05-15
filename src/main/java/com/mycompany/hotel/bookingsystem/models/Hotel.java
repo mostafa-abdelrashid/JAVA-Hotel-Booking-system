@@ -1,7 +1,5 @@
 package com.mycompany.hotel.bookingsystem.models;
 
-
-import com.mycompany.hotel.bookingsystem.exceptions.InvalidReviewException;
 import com.mycompany.hotel.bookingsystem.models.bookings.Booking;
 import com.mycompany.hotel.bookingsystem.models.offers.Offer;
 import com.mycompany.hotel.bookingsystem.models.reviews.Review;
@@ -10,187 +8,100 @@ import com.mycompany.hotel.bookingsystem.models.rooms.Room;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author dell
- */
 public class Hotel {
     private List<Room> rooms;
     private List<Offer> offers;
     private List<Review> reviews;
-    private List<Booking> bookings; // Added Bookings List
+    private List<Booking> bookings;
 
     public Hotel() {
         this.rooms = new ArrayList<>();
         this.offers = new ArrayList<>();
         this.reviews = new ArrayList<>();
-        this.bookings = new ArrayList<>(); // Initialize
+        this.bookings = new ArrayList<>();
     }
 
     // Room-related methods
-    public List<Room> searchAvailableRooms() throws HotelOperationException {
-        try {
-            List<Room> availableRooms = new ArrayList<>();
-            for (Room room : rooms) {
-                if (room.isAvailable()) {
-                    availableRooms.add(room);
-                }
+    public List<Room> searchAvailableRooms() {
+        List<Room> availableRooms = new ArrayList<>();
+        for (Room room : rooms) {
+            if (room.isAvailable()) {
+                availableRooms.add(room);
             }
-            return availableRooms;
-        } catch (Exception e) {
-            throw new HotelOperationException("Error searching for available rooms", e);
         }
+        return availableRooms;
     }
 
-    public void addRoom(Room room) throws InvalidRoomException, HotelOperationException {
+    public void addRoom(Room room) {
         if (room == null) {
-            throw new InvalidRoomException("Room cannot be null");
+            throw new IllegalArgumentException("Room cannot be null");
         }
-        try {
-            if (rooms.contains(room)) {
-                throw new InvalidRoomException("Room already exists in the hotel");
-            }
-            rooms.add(room);
-        } catch (Exception e) {
-            throw new HotelOperationException("Error adding room", e);
-        }
+        rooms.add(room);
     }
 
-    public void removeRoom(Room room) throws RoomNotFoundException, HotelOperationException {
+    public void removeRoom(Room room) {
         if (room == null) {
-            throw new RoomNotFoundException("Room cannot be null");
+            throw new IllegalArgumentException("Room cannot be null");
         }
-        try {
-            if (!rooms.remove(room)) {
-                throw new RoomNotFoundException("Room not found in the hotel");
-            }
-        } catch (Exception e) {
-            throw new HotelOperationException("Error removing room", e);
-        }
+        rooms.remove(room);
     }
 
     // Offer-related methods
-    public void addOffer(Offer offer) throws InvalidOfferException, HotelOperationException {
+    public void addOffer(Offer offer) {
         if (offer == null) {
-            throw new InvalidOfferException("Offer cannot be null");
+            throw new IllegalArgumentException("Offer cannot be null");
         }
-        try {
-            if (offers.contains(offer)) {
-                throw new InvalidOfferException("Offer already exists in the hotel");
-            }
-            offers.add(offer);
-        } catch (Exception e) {
-            throw new HotelOperationException("Error adding offer", e);
-        }
+        offers.add(offer);
     }
 
-    public void removeOffer(Offer offer) throws OfferNotFoundException, HotelOperationException {
+    public void removeOffer(Offer offer) {
         if (offer == null) {
-            throw new OfferNotFoundException("Offer cannot be null");
+            throw new IllegalArgumentException("Offer cannot be null");
         }
-        try {
-            if (!offers.remove(offer)) {
-                throw new OfferNotFoundException("Offer not found in the hotel");
-            }
-        } catch (Exception e) {
-            throw new HotelOperationException("Error removing offer", e);
-        }
+        offers.remove(offer);
     }
 
     // Review-related methods
-    public void addReview(Review review) throws InvalidReviewException, HotelOperationException {
-        if (review == null) {
-            throw new InvalidReviewException("Review cannot be null");
-        }
-        try {
-            reviews.add(review);
-        } catch (Exception e) {
-            throw new HotelOperationException("Error adding review", e);
-        }
-    }
-
-    // Booking-related methods
-    public void addBooking(Booking booking) throws HotelOperationException {
-        try {
-            bookings.add(booking);
-        } catch (Exception e) {
-            throw new HotelOperationException("Error adding booking", e);
-        }
-    }
-
-    public void removeBooking(Booking booking) throws HotelOperationException {
-        if (booking == null) {
-            throw new IllegalArgumentException("Booking cannot be null");
-        }
-        try {
-            if (!bookings.remove(booking)) {
-                throw new IllegalArgumentException("Booking not found in the hotel");
-            }
-        } catch (Exception e) {
-            throw new HotelOperationException("Error removing booking", e);
-        }
-    }
-
-    // Review-related methods
-    public void removeReview(Review review) throws HotelOperationException {
+    public void addReview(Review review) {
         if (review == null) {
             throw new IllegalArgumentException("Review cannot be null");
         }
-        try {
-            if (!reviews.remove(review)) {
-                throw new IllegalArgumentException("Review not found in the hotel");
-            }
-        } catch (Exception e) {
-            throw new HotelOperationException("Error removing review", e);
-        }
+        reviews.add(review);
     }
 
-    // Custom exceptions
-    public static class HotelOperationException extends Exception {
-        public HotelOperationException(String message) {
-            super(message);
+    public void removeReview(Review review) {
+        if (review == null) {
+            throw new IllegalArgumentException("Review cannot be null");
         }
-
-        public HotelOperationException(String message, Throwable cause) {
-            super(message, cause);
-        }
+        reviews.remove(review);
     }
 
-    public static class InvalidRoomException extends Exception {
-        public InvalidRoomException(String message) {
-            super(message);
+    // Booking-related methods
+    public void addBooking(Booking booking) {
+        if (booking == null) {
+            throw new IllegalArgumentException("Booking cannot be null");
         }
+        bookings.add(booking);
     }
 
-    public static class RoomNotFoundException extends Exception {
-        public RoomNotFoundException(String message) {
-            super(message);
+    public void removeBooking(Booking booking) {
+        if (booking == null) {
+            throw new IllegalArgumentException("Booking cannot be null");
         }
-    }
-
-    public static class InvalidOfferException extends Exception {
-        public InvalidOfferException(String message) {
-            super(message);
-        }
-    }
-
-    public static class OfferNotFoundException extends Exception {
-        public OfferNotFoundException(String message) {
-            super(message);
-        }
+        bookings.remove(booking);
     }
 
     // Getters
     public List<Room> getRooms() {
-        return new ArrayList<>(rooms); // Return defensive copy
+        return new ArrayList<>(rooms);
     }
 
     public List<Offer> getOffers() {
-        return new ArrayList<>(offers); // Return defensive copy
+        return new ArrayList<>(offers);
     }
 
     public List<Review> getReviews() {
-        return new ArrayList<>(reviews); // Return defensive copy
+        return new ArrayList<>(reviews);
     }
 
     public List<Booking> getBookings() {

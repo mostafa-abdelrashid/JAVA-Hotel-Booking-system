@@ -3,7 +3,7 @@ package com.mycompany.hotel.bookingsystem.models.services;
 import com.mycompany.hotel.bookingsystem.exceptions.InvalidServiceException;
 
 public class LaundryService extends Service {
-    int clothesCount;
+    private int clothesCount;
 
     public LaundryService(int serviceId, String name, String description, double price, int clothesCount)
             throws InvalidServiceException {
@@ -12,6 +12,13 @@ public class LaundryService extends Service {
             throw new InvalidServiceException("Clothes count must be non-negative.");
         }
         this.clothesCount = clothesCount;
+    }
+
+    public void setClothesCount(int clothesCount) {
+        this.clothesCount = clothesCount;
+    }
+    public int getClothesCount() {
+        return clothesCount;
     }
 
     @Override

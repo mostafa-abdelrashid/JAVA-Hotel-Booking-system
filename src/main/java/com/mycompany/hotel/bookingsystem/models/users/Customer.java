@@ -6,6 +6,7 @@ import com.mycompany.hotel.bookingsystem.models.bookings.Booking;
 import com.mycompany.hotel.bookingsystem.models.payment.Payment;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Customer extends User {
@@ -14,18 +15,24 @@ public class Customer extends User {
 
     public Customer(String name, String email, String password)
             throws InvalidEmailException, InvalidPasswordException {
-                super(name, email, password);
-                this.bookings = new ArrayList<>();
-                this.paymentMethods = new ArrayList<>();
+        super(name, email, password);
+        this.bookings = new ArrayList<>();
+        this.paymentMethods = new ArrayList<>();
     }
 
-    // Return defensive copies instead of direct references
+    // Constructor without password
+    public Customer(String name, String email) throws InvalidEmailException {
+        super(name, email, null);
+        this.bookings = new ArrayList<>();
+        this.paymentMethods = new ArrayList<>();
+    }
+
     public List<Booking> getBookings() {
-        return new ArrayList<>(bookings);
+        return Collections.unmodifiableList(bookings);
     }
 
     public List<Payment> getPaymentMethods() {
-        return new ArrayList<>(paymentMethods);
+        return Collections.unmodifiableList(paymentMethods);
     }
 
     public void addBooking(Booking booking) {
@@ -34,7 +41,7 @@ public class Customer extends User {
         }
     }
 
-    public void addPaymentMethods(Payment method) {
+    public void addPaymentMethod(Payment method) {
         if (method != null) {
             paymentMethods.add(method);
         }
@@ -42,6 +49,13 @@ public class Customer extends User {
 
     @Override
     public boolean login(String enteredPassword) {
+        // Customers can login without password if none is set
+        if (getPassword() == null) {
+            System.out.println(getName() + " (Customer) logged in (no password required).");
+            return true;
+        }
+
+        // Verify password if one is set
         boolean success = enteredPassword != null && enteredPassword.equals(getPassword());
         System.out.println(getName() + " (Customer) " + (success ? "successfully" : "failed to") + " log in.");
         return success;

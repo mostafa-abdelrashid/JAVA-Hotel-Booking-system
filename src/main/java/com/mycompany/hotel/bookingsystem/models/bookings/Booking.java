@@ -1,5 +1,9 @@
 package com.mycompany.hotel.bookingsystem.models.bookings;
 
+import com.mycompany.hotel.bookingsystem.exceptions.BookingOperationException;
+import com.mycompany.hotel.bookingsystem.exceptions.InvalidBookingException;
+import com.mycompany.hotel.bookingsystem.exceptions.InvalidOfferException;
+import com.mycompany.hotel.bookingsystem.exceptions.InvalidServiceException;
 import com.mycompany.hotel.bookingsystem.models.offers.Offer;
 import com.mycompany.hotel.bookingsystem.models.rooms.Room;
 import com.mycompany.hotel.bookingsystem.models.services.Service;
@@ -101,32 +105,12 @@ public class Booking {
         return diff / (1000 * 60 * 60 * 24); // Convert milliseconds to days
     }
 
-    // Custom exceptions
-    public static class InvalidBookingException extends Exception {
-        public InvalidBookingException(String message) {
-            super(message);
-        }
-    }
 
-    public static class BookingOperationException extends RuntimeException {
-        public BookingOperationException(String message) {
-            super(message);
-        }
-        public BookingOperationException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 
-    public static class InvalidServiceException extends Exception {
-        public InvalidServiceException(String message) {
-            super(message);
-        }
-    }
-    public static class InvalidOfferException extends Exception {
-        public InvalidOfferException(String message) {
-            super(message);
-        }
-    }
+
+
+
+
     // Getters and Setters
     public int getBookingId() {
         return bookingId;

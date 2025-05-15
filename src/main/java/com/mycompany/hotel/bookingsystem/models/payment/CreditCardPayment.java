@@ -1,45 +1,55 @@
 package com.mycompany.hotel.bookingsystem.models.payment;
 
 import com.mycompany.hotel.bookingsystem.exceptions.ExpiredCardException;
+import java.time.YearMonth;
+import java.util.Objects;
 
-import java.util.Date;
+public final class CreditCardPayment implements Payment {
+    private final String cardNumber;
+    private final YearMonth expiryDate;
+    private final String cardHolderName;
+    private final String cvv;
 
-public class CreditCardPayment implements Payment {
-    private String cardNumber;
-    private Date expiryDate;
-    /*
-    - For the Date class the constructor is Date(int year, int month, int day);
-    - the year parameter is a value that will be added to 1900
-    (for example to get year 2027 the input should be 127)
-    -The months start from 0 so January = 0 and December = 11
-    - Since the expiry Date on the card only contains the month and year put the day = 1
-    */
-    private String cardHolderName;
-    private String CVV;
+    public CreditCardPayment(String cardNumber, YearMonth expiryDate,
+                             String cardHolderName, String cvv)
+            throws IllegalArgumentException, ExpiredCardException {
 
-    public CreditCardPayment(String cardNumber, Date expiryDate, String cardHolderName, String CVV) throws IllegalArgumentException, ExpiredCardException {
-        Date currentDate = new Date();
-        if (cardNumber.length() != 16) throw new IllegalArgumentException("the card number is 16 digits");
-        for (int i = 0; i < cardNumber.length(); i++) {
-            if (!Character.isDigit(cardNumber.charAt(i)))
-                throw new IllegalArgumentException("the card number must only contain digits");
+        validateCardNumber(cardNumber);
+        validateCVV(cvv);
+        Objects.requireNonNull(cardHolderName, "Cardholder name cannot be null");
+        Objects.requireNonNull(expiryDate, "Expiry date cannot be null");
+
+        if (expiryDate.isBefore(YearMonth.now())) {
+            throw new ExpiredCardException();
         }
-        if (expiryDate.compareTo(currentDate) <= 0) throw new ExpiredCardException();
-        if (cardHolderName == null || cardHolderName.trim().isEmpty())
-            throw new IllegalArgumentException("There is no name");
-        if (CVV.length() != 3) throw new IllegalArgumentException("the CVV is 3 digits");
-        for (int i = 0; i < CVV.length(); i++) {
-            if (!Character.isDigit(CVV.charAt(i)))
-                throw new IllegalArgumentException("the CVV must only contain digits");
-        }
+
         this.cardNumber = cardNumber;
         this.expiryDate = expiryDate;
-        this.cardHolderName = cardHolderName;
-        this.CVV = CVV;
+        this.cardHolderName = cardHolderName.trim();
+        this.cvv = cvv;
     }
 
+    // Validation helpers -  Simplified
+    private void validateCardNumber(String cardNumber) throws IllegalArgumentException {
+        if (cardNumber == null || cardNumber.isEmpty()) {
+            throw new IllegalArgumentException("Card number cannot be empty");
+        }
+    }
+
+    private void validateCVV(String cvv) throws IllegalArgumentException {
+        if (cvv == null || cvv.isEmpty()) {
+            throw new IllegalArgumentException("CVV cannot be empty");
+        }
+    }
+
+    @Override
     public boolean pay(double amount) throws IllegalArgumentException {
-        if (amount < 0) throw new IllegalArgumentException("the amount must be a positive value");
-        return true; // assume the user have enough balance in their bank account
+        validateAmount(amount);  // Reuses interface's default method
+        // Actual payment gateway integration would go here
+        return true;  // Mock success
+    }
+
+    public YearMonth getExpiryDate() {
+        return expiryDate;
     }
 }

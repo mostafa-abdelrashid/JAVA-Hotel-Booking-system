@@ -1,28 +1,46 @@
-
 package com.mycompany.hotel.bookingsystem.models.rooms;
 
+import java.util.Objects;
 
-public class Room {
+public abstract class Room {
     private final int roomNumber;
-    private String type; // "Single", "Double", "Suite"
+    private final String type;
     private double price;
     private boolean isAvailable;
     private final int capacity;
 
-    public Room(int roomNumber, String type, double price, boolean isAvailable, int capacity) {
-        if (roomNumber <= 0) throw new IllegalArgumentException("Room number must be positive");
-        if (price < 0) throw new IllegalArgumentException("Price cannot be negative");
-        if (type == null || type.trim().isEmpty()) throw new IllegalArgumentException("Room type cannot be empty");
-        if (capacity <= 0) throw new IllegalArgumentException("Capacity must be positive");
-
-        this.roomNumber = roomNumber;
-        this.type = type.trim();
-        this.price = price;
-        this.isAvailable = isAvailable;
-        this.capacity = capacity;
+    protected Room(int roomNumber, String type, double price, int capacity) {
+        this.roomNumber = validateRoomNumber(roomNumber);
+        this.type = validateType(type);
+        this.price = validatePrice(price);
+        this.capacity = validateCapacity(capacity);
+        this.isAvailable = true; // Default to available
     }
 
-    // New methods for room booking management
+    // Validation helpers
+    private static int validateRoomNumber(int number) {
+        if (number <= 0) throw new IllegalArgumentException("Room number must be positive");
+        return number;
+    }
+
+    private static String validateType(String type) {
+        if (type == null || type.trim().isEmpty()) {
+            throw new IllegalArgumentException("Room type cannot be empty");
+        }
+        return type.trim();
+    }
+
+    private static double validatePrice(double price) {
+        if (price < 0) throw new IllegalArgumentException("Price cannot be negative");
+        return price;
+    }
+
+    private static int validateCapacity(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException("Capacity must be positive");
+        return capacity;
+    }
+
+    // Domain methods
     public void book() {
         if (!isAvailable) {
             throw new IllegalStateException("Room #" + roomNumber + " is already booked");
@@ -45,13 +63,10 @@ public class Room {
     public int getCapacity() { return capacity; }
 
     // Setters
-    public void setAvailable(boolean available) { isAvailable = available; }
     public void setPrice(double price) {
-        if (price < 0) throw new IllegalArgumentException("Price cannot be negative");
-        this.price = price;
+        this.price = validatePrice(price);
     }
 
-    
     public int compareTo(Room other) {
         return Double.compare(this.price, other.price);
     }
@@ -66,4 +81,3 @@ public class Room {
                 capacity);
     }
 }
-
