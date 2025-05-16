@@ -4,6 +4,7 @@ import com.mycompany.hotel.bookingsystem.controllers.BookingController;
 import com.mycompany.hotel.bookingsystem.exceptions.InvalidServiceException;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -15,8 +16,8 @@ import javafx.stage.Stage;
 
 import java.sql.Date;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import com.mycompany.hotel.bookingsystem.models.rooms.Room; //Import the Room class
 
 public class BookingApp extends Application {
     private BookingController controller;
@@ -24,11 +25,11 @@ public class BookingApp extends Application {
     private VBox creditCardFields;
     private VBox paypalFields;
     private TextField offerCodeField;
-    private TextField cardNumberField;  // Added
-    private TextField expiryField;    // Added
-    private TextField cvvField;       // Added
-    private TextField holderField;    // Added
-    private TextField paypalEmailField; //Added
+    private TextField cardNumberField;
+    private TextField expiryField;
+    private TextField cvvField;
+    private TextField holderField;
+    private TextField paypalEmailField;
 
     // Service-related UI elements
     private CheckBox laundryCheckBox;
@@ -36,7 +37,9 @@ public class BookingApp extends Application {
     private CheckBox roomServiceCheckBox;
     private ComboBox<String> mealTypeCombo;
     private CheckBox spaServiceCheckBox;
-    private ComboBox<String> spaPackageCombo; // Added ComboBox for Spa Package
+    private ComboBox<String> spaPackageCombo;
+    private ListView<String> availableRoomsView; // Add this ListView
+    private ComboBox<String> roomTypeComboBox; // Changed name for clarity
 
     public BookingApp() throws InvalidServiceException {
         this.controller = new BookingController();
@@ -59,7 +62,6 @@ public class BookingApp extends Application {
         ScrollPane formScrollPane = new ScrollPane();
         formScrollPane.setContent(formSection);
         formScrollPane.setFitToWidth(true);
-        // scroll vertically when needed and never scroll horizontally
         formScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         formScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
@@ -68,7 +70,7 @@ public class BookingApp extends Application {
         title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         title.setTextFill(Color.DARKBLUE);
 
-        // Customer Information
+        // Customer Information - Side by side
         Label customerLabel = new Label("Customer Information:");
         customerLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
@@ -85,13 +87,11 @@ public class BookingApp extends Application {
 
         nameEmailBox.getChildren().addAll(nameBox, emailBox);
 
-        // Booking Details
+        // Booking Details - Side by side
         Label bookingLabel = new Label("Booking Details:");
         bookingLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
 
         HBox dateBox = new HBox(15);
-
-
         VBox checkInBox = new VBox(5);
         Label checkInLabel = new Label("Check-in Date:");
         DatePicker checkInDate = new DatePicker();
@@ -106,9 +106,9 @@ public class BookingApp extends Application {
 
         // Room Type
         Label roomLabel = new Label("Room Type:");
-        ComboBox<String> roomType = new ComboBox<>(FXCollections.observableArrayList(
-                "Single Room", "Double Room", "Suite"));
-        roomType.setPromptText("Select Room Type");
+        // Use the new ComboBox, but populate it later
+        roomTypeComboBox = new ComboBox<>();
+        roomTypeComboBox.setPromptText("Select Room Type");
 
         // Services Selection
         Label servicesLabel = new Label("Select Services:");
@@ -201,21 +201,14 @@ public class BookingApp extends Application {
                 selectedServicesWithValues.put(5, spaPackageCombo.getValue()); // Get selected spa package
             }
 
-            // Get offer code
-            String offerCode = offerCodeField.getText();
-
-            System.out.println("Card Number: " + cardNumberField.getText());  // Debug
-            System.out.println("Expiry: " + expiryField.getText());        // Debug
-            System.out.println("CVV: " + cvvField.getText());            // Debug
-            System.out.println("Holder: " + holderField.getText());          // Debug
-            System.out.println("PayPal Email: " + paypalEmailField.getText());  // Debug
+            String offerCode = offerCodeField.getText().trim();
 
             String output = controller.processBooking(
                     nameField.getText(),
                     emailField.getText(),
                     convertToDate(checkInDate.getValue()),
                     convertToDate(checkOutDate.getValue()),
-                    roomType.getValue(),
+                    roomTypeComboBox.getValue(), // Get selected room type from ComboBox
                     selectedServicesWithValues,
                     offerCode,
                     creditCardOption.isSelected(),
@@ -226,6 +219,7 @@ public class BookingApp extends Application {
                     paypalEmailField.getText()
             );
             updateBookingsView(output);
+            showAvailableRooms(); // REFRESH THE LIST
         });
 
         // Form Layout
@@ -235,7 +229,7 @@ public class BookingApp extends Application {
                 nameEmailBox,
                 bookingLabel,
                 dateBox,
-                roomLabel, roomType,
+                roomLabel, roomTypeComboBox, // Use the ComboBox
                 servicesLabel,
                 servicesGrid,
                 offerCodeLabel,
@@ -260,10 +254,18 @@ public class BookingApp extends Application {
         Button refreshBtn = new Button("Refresh Bookings");
         refreshBtn.setOnAction(e -> updateBookingsView(""));
 
+        // Add a section for displaying available rooms
+        Label availableRoomsTitle = new Label("Available Rooms");
+        availableRoomsTitle.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        availableRoomsView = new ListView<>();
+        availableRoomsView.setPlaceholder(new Label("No rooms available"));
+
         bookingsSection.getChildren().addAll(
                 bookingsTitle,
                 refreshBtn,
-                bookingsView
+                bookingsView,
+                availableRoomsTitle, //Addded
+                availableRoomsView // Add the available rooms ListView
         );
 
         mainLayout.getItems().addAll(formScrollPane, bookingsSection);
@@ -272,7 +274,36 @@ public class BookingApp extends Application {
         stage.setTitle("Hotel Booking System");
         stage.setScene(scene);
         stage.show();
+
+        //Populate the room list and show available rooms on startup
+        populateRoomComboBox();
+        showAvailableRooms();
     }
+
+    private void populateRoomComboBox() {
+        List<Room> rooms = controller.getAvailableRooms();
+        ObservableList<String> roomTypes = FXCollections.observableArrayList();
+        for (Room room : rooms) {
+            String roomType = room.getClass().getSimpleName();
+            if (!roomTypes.contains(roomType)) { //avoid duplicates
+                roomTypes.add(roomType);
+            }
+        }
+        roomTypeComboBox.setItems(roomTypes);
+        if (!roomTypes.isEmpty()) {
+            roomTypeComboBox.setValue(roomTypes.get(0)); // Optionally select the first room type
+        }
+    }
+
+    private void showAvailableRooms() {
+        List<Room> rooms = controller.getAvailableRooms();
+        Collections.sort(rooms);
+        availableRoomsView.getItems().clear(); // Clear old items
+        for (Room room : rooms) {
+            availableRoomsView.getItems().add(room.toString());
+        }
+    }
+
 
     private VBox createCreditCardFields() {
         VBox fields = new VBox(5);
@@ -333,4 +364,3 @@ public class BookingApp extends Application {
         launch(args);
     }
 }
-

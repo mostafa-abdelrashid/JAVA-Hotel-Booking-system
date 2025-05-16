@@ -19,8 +19,12 @@ public class BookingController {
     private final Map<Integer, Service> availableServices = new HashMap<>();
     private int bookingIdCounter = 1;
 
+    // Add a list to store all rooms.  This is important for displaying *all* rooms.
+    private final List<Room> allRooms = new ArrayList<>();
+
     public BookingController() throws InvalidServiceException {
         initializeServices();
+        initializeRooms(); // Initialize rooms
     }
 
     private void initializeServices() throws InvalidServiceException {
@@ -37,6 +41,23 @@ public class BookingController {
         availableServices.put(6, new SpaService(6, "Premium Package", "Full spa experience", 100.0, "Premium"));
     }
 
+    private void initializeRooms() {
+        allRooms.add(new SingleRoom(101, 100));
+        allRooms.add(new SingleRoom(102, 100));
+        allRooms.add(new SingleRoom(103, 100));
+        allRooms.add(new DoubleRoom(201, 150));
+        allRooms.add(new DoubleRoom(202, 150));
+        allRooms.add(new DoubleRoom(203, 150));
+        allRooms.add(new SuiteRoom(301, 250));
+        allRooms.add(new SuiteRoom(302, 250));
+        allRooms.add(new SuiteRoom(303, 250));
+        allRooms.add(new SuiteRoom(304, 350));
+    }
+
+    public List<Room> getAvailableRooms() {
+        return allRooms;
+    }
+
     public String processBooking(String name, String email,
                                  Date checkIn, Date checkOut,
                                  String roomType,
@@ -46,12 +67,16 @@ public class BookingController {
                                  String cardNum, String expiry,
                                  String holder, String cvv,
                                  String paypalEmail) {
+        Room roomToRemove = null; // Temporarily store the room to remove
         try {
             Customer customer = new Customer(name, email);
 
-
             // Create room
             Room room = createRoom(roomType);
+            if (room == null) {
+                return "⚠️ Error: No room of type " + roomType + " available.";
+            }
+            roomToRemove = room; // Store the room to remove on success
 
             // Create booking
             Booking booking = new Booking(bookingIdCounter++, customer, room, checkIn, checkOut);
@@ -63,12 +88,12 @@ public class BookingController {
             // Apply offer if present
             double totalPrice = booking.getTotalPrice() + servicesTotal;
             if (offerCode != null && !offerCode.trim().isEmpty()) {
-                if (isValidOfferCode(offerCode)) {
-                    SpecialCodeOffer offer = new SpecialCodeOffer(offerCode);
+                try {
+                    SpecialCodeOffer offer = new SpecialCodeOffer(offerCode.trim());
                     totalPrice = offer.applyOffer(totalPrice);
                     booking.setOfferApplied(offer);
-                } else {
-                    return "⚠️ Error: Invalid offer code.";
+                } catch (IllegalArgumentException e) {
+                    return "⚠️ Error: " + e.getMessage();
                 }
             }
 
@@ -78,25 +103,48 @@ public class BookingController {
                 return "❌ Payment failed. Please try another payment method.";
             }
 
+            // Remove the booked room from the list of all rooms (only on success).
+            if (roomToRemove != null) {
+                allRooms.remove(roomToRemove);
+            }
+
             return completeBooking(booking, payment, totalPrice);
 
-        }catch (InvalidEmailException e) {
+        } catch (InvalidEmailException e) {
             System.out.println("InvalidEmailException caught: " + e.getMessage());
             return "⚠️ Error: " + e.getMessage();
         } catch (Exception ex) {
+            // If a room was selected but booking failed, we should add it back.
+            if (roomToRemove != null) {
+                // Determine the type of the room and add a new instance
+                int roomNumber = roomToRemove.getRoomNumber();
+                double price = roomToRemove.getPrice();
+
+                if (roomToRemove instanceof SingleRoom) {
+                    allRooms.add(new SingleRoom(roomNumber, price));
+                } else if (roomToRemove instanceof DoubleRoom) {
+                    allRooms.add(new DoubleRoom(roomNumber, price));
+                } else if (roomToRemove instanceof SuiteRoom) {
+                    allRooms.add(new SuiteRoom(roomNumber, price));
+                }
+            }
             return "⚠️ Error: " + ex.getMessage();
         }
     }
 
     private Room createRoom(String roomType) {
-        switch (roomType) {
-            case "Single Room": return new SingleRoom(101, 100);
-            case "Double Room": return new DoubleRoom(102, 150);
-            case "Suite": return new SuiteRoom(103, 250);
-            case "Deluxe Suite": return new SuiteRoom(104, 350);
-            default: throw new IllegalArgumentException("Unknown room type: " + roomType);
+        List<Room> matchingRooms = new ArrayList<>();
+        for (Room room : allRooms) {
+            if (room.getClass().getSimpleName().equalsIgnoreCase(roomType.replace(" ", ""))) {
+                matchingRooms.add(room);
+            }
         }
+        if (!matchingRooms.isEmpty()) {
 
+            Room selectedRoom = matchingRooms.get(0);
+            return selectedRoom;
+        }
+        return null; // Return null if no room is found
     }
 
     private double addServicesToBooking(Booking booking, Map<Integer, String> selectedServicesWithValues) { // Changed method signature
@@ -133,17 +181,14 @@ public class BookingController {
                 }
             }
         } else if (service instanceof RoomService) {
-            // Here, serviceValue will be the meal type (e.g., "Continental", "Gourmet")
+
             if (serviceValue != null && !serviceValue.isEmpty()) {
                 ((RoomService) service).setMealType(serviceValue);
             }
-            // The price is already set in initializeServices, no need to adjust here
         } else if (service instanceof SpaService) {
-            // Here, serviceValue will be the spa package name (e.g., "Basic", "Premium")
             if (serviceValue != null && !serviceValue.isEmpty()) {
                 ((SpaService) service).setSpaPackage(serviceValue);
             }
-            // The price is already set in initializeServices, no need to adjust here
         }
         return serviceCost;
     }
@@ -176,7 +221,7 @@ public class BookingController {
         sb.append("✅ Booking successful!\n");
         sb.append(String.format("Booking ID: %d\n", booking.getBookingId()));
         sb.append(String.format("Customer: %s\n", booking.getCustomer().getName()));
-        sb.append(String.format("Room: %s\n", booking.getRoom().getClass().getSimpleName()));
+        sb.append(String.format("Room: %s\n", booking.getRoom().toString()));
         sb.append(String.format("Check-in: %s\n", booking.getCheckInDate()));
         sb.append(String.format("Check-out: %s\n", booking.getCheckOutDate()));
 
@@ -221,7 +266,9 @@ public class BookingController {
     }
 
     private boolean isValidOfferCode(String offerCode) {
-
-        return offerCode.equalsIgnoreCase("SAVE10") || offerCode.equalsIgnoreCase("SPECIAL20");
+        System.out.println("Checking offer code: '" + offerCode + "'");
+        boolean isValid = offerCode.equalsIgnoreCase("SAVE10") || offerCode.equalsIgnoreCase("SPECIAL20");
+        System.out.println("Is valid? " + isValid);
+        return isValid;
     }
 }

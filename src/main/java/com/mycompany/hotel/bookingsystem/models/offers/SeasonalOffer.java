@@ -10,9 +10,9 @@ public final class SeasonalOffer extends Offer {
         if (startDate == null || endDate == null || startDate.after(endDate)) {
             throw new IllegalArgumentException("Invalid date range");
         }
-        this.startDate = new Date(startDate.getTime());  // Defensive copy
+        this.startDate = new Date(startDate.getTime());
         this.endDate = new Date(endDate.getTime());
-        setActive(checkOffer());  // Updates parent's isActive
+        setActive(checkOffer());
     }
 
     // Getters (no setters; immutable)
